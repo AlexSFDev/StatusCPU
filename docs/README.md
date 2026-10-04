@@ -1,6 +1,6 @@
 # StatusCPU
 
-StatusCPU is the custom 32-bit processor architecture used by StatusProjects.
+StatusCPU is the custom 32-bit processor architecture used by StatusFire Products.
 
 StatusCPU v1 provides:
 
