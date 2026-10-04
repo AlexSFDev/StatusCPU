@@ -1,0 +1,9 @@
+LOADI R1, 0
+LOADI R2, 10
+
+loop:
+ADDI R1, R1, 1
+CMP R1, R2
+JL loop
+
+HALT

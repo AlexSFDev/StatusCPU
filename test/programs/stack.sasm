@@ -1,0 +1,6 @@
+LOADI R1, 123
+PUSH R1
+
+POP R2
+
+HALT

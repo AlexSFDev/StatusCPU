@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>StatusCPU Visualizer</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0d12;--panel:#11151d;--panel2:#171c25;--line:#28303c;--text:#edf2f7;--muted:#8994a5;--accent:#61dafb;--good:#62d394;--warn:#f5c85b;--bad:#ff6b78}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif}
+button{font:inherit}
+.app{max-width:1450px;margin:auto;padding:22px}
+header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:13px}
+.logo{width:44px;height:44px;border:1px solid var(--accent);border-radius:10px;display:grid;place-items:center;color:var(--accent);font-weight:800}
+h1{font-size:22px;margin:0}.sub{color:var(--muted);font-size:13px;margin-top:3px}
+.status{display:flex;align-items:center;gap:8px;color:var(--good);font-size:13px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 10px var(--good)}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:7px;padding:8px 13px;cursor:pointer}
+button:hover{border-color:#526071}button.primary{border-color:var(--accent);color:var(--accent)}
+button.danger{color:var(--bad)}
+.grid{display:grid;grid-template-columns:1.35fr .9fr .9fr;gap:14px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.panel h2{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:11px 13px;margin:0;border-bottom:1px solid var(--line)}
+.content{padding:13px}
+.cpu{min-height:440px;display:grid;grid-template-columns:1fr 1.2fr 1fr;grid-template-rows:1fr 1.2fr 1fr;gap:10px;align-items:stretch}
+.block{border:1px solid var(--line);border-radius:8px;background:var(--panel2);padding:12px;position:relative;transition:.15s}
+.block.active{border-color:var(--accent);box-shadow:0 0 0 1px color-mix(in srgb,var(--accent),transparent 65%),0 0 20px color-mix(in srgb,var(--accent),transparent 85%)}
+.block h3{font-size:13px;margin:0 0 8px}.tiny{font-size:11px;color:var(--muted)}
+.alu{grid-column:2;grid-row:2;display:grid;place-items:center;text-align:center}
+.alu-core{width:130px;height:110px;border:1px solid var(--accent);clip-path:polygon(16% 0,100% 0,84% 100%,0 100%);display:grid;place-items:center;color:var(--accent);font-weight:800}
+.regs{grid-column:1;grid-row:1 / 4}.control{grid-column:2;grid-row:1}.memory{grid-column:3;grid-row:1 / 4}.bus{grid-column:2;grid-row:3}
+.reg-list{display:grid;grid-template-columns:1fr 1fr;gap:5px;max-height:350px;overflow:auto}
+.reg{display:flex;justify-content:space-between;padding:6px 7px;border:1px solid var(--line);border-radius:5px;font-family:ui-monospace,monospace;font-size:12px}
+.reg.changed{border-color:var(--good)}
+.value{color:var(--accent)}
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.metric{padding:8px;border:1px solid var(--line);border-radius:6px}.metric b{display:block;font-family:ui-monospace,monospace;margin-top:3px}
+.flags{display:flex;gap:5px;flex-wrap:wrap}.flag{padding:5px 7px;border:1px solid var(--line);border-radius:5px;font:11px ui-monospace,monospace;color:var(--muted)}.flag.on{color:var(--good);border-color:var(--good)}
+table{width:100%;border-collapse:collapse;font:12px ui-monospace,monospace}th,td{text-align:left;padding:7px;border-bottom:1px solid var(--line)}th{color:var(--muted);font-weight:500}.current{background:color-mix(in srgb,var(--accent),transparent 88%);color:var(--accent)}
+.asm{max-height:280px;overflow:auto}.asm-row{display:grid;grid-template-columns:52px 90px 1fr;gap:10px;padding:7px 8px;border-radius:5px;font:12px ui-monospace,monospace}.asm-row .addr{color:var(--muted)}
+.memory-table{max-height:300px;overflow:auto}
+.log{height:260px;overflow:auto;font:12px ui-monospace,monospace}.log div{padding:5px 0;border-bottom:1px solid var(--line)}.log .time{color:var(--muted)}.fault{color:var(--good)}
+.bottom{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}
+@media(max-width:1050px){.grid{grid-template-columns:1fr 1fr}.cpu{min-height:500px}.memory{grid-column:3}.bottom{grid-template-columns:1fr}}
+@media(max-width:720px){.app{padding:12px}.grid{grid-template-columns:1fr}.cpu{display:flex;flex-direction:column}.regs,.memory{max-height:none}.bottom{grid-template-columns:1fr}.reg-list{max-height:240px}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+<header>
+<div class="brand"><div class="logo">S</div><div><h1>StatusCPU</h1><div class="sub">Interactive CPU architecture visualizer</div></div></div>
+<div class="status"><span class="dot"></span><span id="state">HALTED</span></div>
+</header>
+
+<div class="controls">
+<button class="primary" id="run">▶ Run</button>
+<button id="step">Step</button>
+<button id="pause">Pause</button>
+<button id="reset">Reset</button>
+<label style="display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px">Speed <input id="speed" type="range" min="1" max="20" value="5"></label>
+</div>
+
+<div class="grid">
+<section class="panel">
+<h2>CPU datapath</h2>
+<div class="content">
+<div class="cpu">
+<div class="block regs" id="regBlock"><h3>Register File</h3><div class="tiny">16 × 32-bit general registers</div><div class="reg-list" id="regs"></div></div>
+<div class="block control" id="controlBlock"><h3>Control Unit</h3><div class="tiny" id="control">Waiting</div><div style="margin-top:10px" class="tiny">Instruction Decoder</div><div id="decode" style="font:12px ui-monospace,monospace;margin-top:4px">—</div></div>
+<div class="block alu" id="aluBlock"><div class="alu-core">ALU<br><span class="tiny">32-BIT</span></div></div>
+<div class="block memory" id="memBlock"><h3>Memory</h3><div class="metrics"><div class="metric">PC<b id="pc">0x00000000</b></div><div class="metric">SP<b id="sp">0x00001000</b></div><div class="metric">Last read<b id="read">—</b></div><div class="metric">Last write<b id="write">—</b></div></div><div style="margin-top:12px"><div class="tiny">FLAGS</div><div class="flags" id="flags"></div></div></div>
+<div class="block bus"><h3>System Bus</h3><div class="tiny" id="bus">Idle</div></div>
+</div>
+</div>
+</section>
+
+<section class="panel">
+<h2>Program</h2>
+<div class="content asm" id="program"></div>
+</section>
+
+<section class="panel">
+<h2>Memory</h2>
+<div class="content memory-table"><table><thead><tr><th>Address</th><th>Hex</th><th>Value</th></tr></thead><tbody id="memory"></tbody></table></div>
+</section>
+</div>
+
+<div class="bottom">
+<section class="panel"><h2>Execution Log</h2><div class="content log" id="log"></div></section>
+<section class="panel"><h2>Current Instruction</h2><div class="content"><div style="font:18px ui-monospace,monospace;color:var(--accent)" id="current">HALT</div><div class="tiny" style="margin-top:8px" id="details">CPU is halted.</div><div style="margin-top:16px" class="tiny">ARCHITECTURE</div><div style="margin-top:7px;line-height:1.7;font-size:13px">32-bit • 16 registers • byte-addressable memory • little-endian • 4 flags • stack grows downward</div></div></section>
+</div>
+</div>
+
+<script>
+const program=[
+ {addr:0,bytes:"01 01 0A 00 00 00",text:"LOADI R1, 10"},
+ {addr:6,bytes:"01 02 14 00 00 00",text:"LOADI R2, 20"},
+ {addr:12,bytes:"02 03 01 02",text:"ADD R3, R1, R2"},
+ {addr:16,bytes:"01 04 05 00 00 00",text:"LOADI R4, 5"},
+ {addr:22,bytes:"04 03 03 04",text:"MUL R3, R3, R4"},
+ {addr:26,bytes:"0B 03 02",text:"CMP R3, R2"},
+ {addr:29,bytes:"1B 23 00 00 00",text:"JGT 35"},
+ {addr:34,bytes:"00",text:"HALT"},
+ {addr:35,bytes:"0F 03",text:"PUSH R3"},
+ {addr:37,bytes:"10 05",text:"POP R5"},
+ {addr:39,bytes:"00",text:"HALT"}
+];
+const initial={1:0,2:0,3:0,4:0,5:0};
+let regs=Array(16).fill(0),pc=0,sp=0x1000,flags=0,running=false,timer=null,lastChanged=-1,logCount=0;
+const $=id=>document.getElementById(id);
+const hex=n=>"0x"+(n>>>0).toString(16).padStart(8,"0").toUpperCase();
+function renderProgram(){ $("program").innerHTML=program.map(x=>`<div class="asm-row ${x.addr===pc?"current":""}"><span class="addr">${hex(x.addr)}</span><span>${x.bytes}</span><span>${x.text}</span></div>`).join("") }
+function renderRegs(){ $("regs").innerHTML=regs.map((v,i)=>`<div class="reg ${i===lastChanged?"changed":""}"><span>R${i}</span><span class="value">${hex(v)}</span></div>`).join("") }
+function renderFlags(){const names=[["Z",1],["N",2],["C",4],["V",8]];$("flags").innerHTML=names.map(([n,b])=>`<span class="flag ${(flags&b)?"on":""}">${n}</span>`).join("")}
+function renderMemory(){const rows=[];for(let a=0;a<64;a+=4){let v=0;if(a===0)v=0x01010101;rows.push(`<tr><td>${hex(a)}</td><td>${[v&255,(v>>>8)&255,(v>>>16)&255,(v>>>24)&255].map(x=>x.toString(16).padStart(2,"0").toUpperCase()).join(" ")}</td><td>${v>>>0}</td></tr>`)}$("memory").innerHTML=rows.join("")}
+function render(){renderRegs();renderFlags();renderProgram();renderMemory();$("pc").textContent=hex(pc);$("sp").textContent=hex(sp);$("state").textContent=running?"RUNNING":pc>=34?"HALTED":"PAUSED"}
+function log(s){const el=$("log");el.innerHTML=`<div><span class="time">[${String(++logCount).padStart(3,"0")}]</span> ${s}</div>`+el.innerHTML}
+function find(){return program.find(x=>x.addr===pc)}
+function highlight(type){["controlBlock","aluBlock","regBlock","memBlock"].forEach(x=>$(x).classList.remove("active"));if(type)$(type).classList.add("active");}
+function execute(){
+const ins=find(); if(!ins){running=false;clearInterval(timer);$("current").textContent="HALT";$("details").textContent="Execution reached unmapped memory.";render();return}
+$("current").textContent=ins.text;$("details").textContent=`PC ${hex(ins.addr)} • bytes ${ins.bytes}`;
+$("decode").textContent=ins.text;$("control").textContent="FETCH → DECODE → EXECUTE";$("bus").textContent=`Instruction bus: ${ins.bytes}`;
+highlight("controlBlock");
+setTimeout(()=>highlight("aluBlock"),90);
+setTimeout(()=>{
+lastChanged=-1;
+const old=regs.slice();
+switch(ins.addr){
+case 0: regs[1]=10; break;
+case 6: regs[2]=20; break;
+case 12: regs[3]=(regs[1]+regs[2])>>>0; flags=0; if(regs[3]===0)flags|=1;if(regs[3]&0x80000000)flags|=2;break;
+case 16: regs[4]=5;break;
+case 22: regs[3]=Math.imul(regs[3],regs[4])>>>0;flags=0;if(regs[3]===0)flags|=1;if(regs[3]&0x80000000)flags|=2;break;
+case 26: flags=regs[3]===regs[2]?1:0;break;
+case 29: if(flags&1){} else {pc=35-5;};break;
+case 34: running=false;clearInterval(timer);$("state").textContent="HALTED";log("HALT — processor stopped");render();return;
+case 35: sp-=4;log(`STACK WRITE ${hex(sp)} ← R3 (${hex(regs[3])})`);break;
+case 37: regs[5]=regs[3];sp+=4;log(`STACK READ R5 ← ${hex(regs[5])}`);break;
+case 39: running=false;clearInterval(timer);log("HALT — processor stopped");render();return;
+}
+for(let i=0;i<16;i++)if(regs[i]!==old[i]){lastChanged=i;log(`R${i} changed ${hex(old[i])} → ${hex(regs[i])}`)}
+if(ins.addr!==29)log(`EXEC ${ins.text}`);
+pc+=ins.bytes.split(" ").length;
+highlight("regBlock");render();
+},170);
+}
+function start(){if(running)return;running=true;clearInterval(timer);timer=setInterval(execute,Math.max(220,1100-Number($("speed").value)*45));execute();render()}
+function pause(){running=false;clearInterval(timer);$("state").textContent="PAUSED"}
+function reset(){pause();regs=Array(16).fill(0);pc=0;sp=0x1000;flags=0;lastChanged=-1;logCount=0;$("log").innerHTML="";$("read").textContent="—";$("write").textContent="—";$("current").textContent="HALT";$("details").textContent="CPU reset. Ready.";highlight();log("RESET — registers, PC, SP and flags cleared");render()}
+$("run").addEventListener("click",start);$("pause").addEventListener("click",pause);$("step").addEventListener("click",()=>{pause();execute()});$("reset").addEventListener("click",reset);$("speed").addEventListener("input",()=>{if(running)start()});
+reset();
+</script>
+</body>
+</html>

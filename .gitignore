@@ -1,0 +1,97 @@
+# Rust
+target/
+
+# Build artifacts
+*.status
+*.bin
+*.elf
+*.hex
+*.mem
+*.map
+*.img
+*.iso
+*.o
+*.obj
+*.exe
+*.dll
+*.pdb
+*.so
+*.a
+*.lib
+
+# Logs
+*.log
+logs/
+*.trace
+*.dump
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+*.secret
+*.secrets
+secrets/
+secret/
+private/
+credentials/
+credential/
+keys/
+key/
+certs/
+cert/
+certificates/
+
+# Private keys / certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+
+# API / authentication files
+*token*
+*TOKEN*
+*password*
+*PASSWORD*
+*passwd*
+*PASSWD*
+*credential*
+*CREDENTIAL*
+
+# SSH
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+known_hosts
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# Test/runtime data
+test-output/
+test-results/
+coverage/
+cache/
+tmp/
+
+# Generated documentation/output
+docs/generated/
